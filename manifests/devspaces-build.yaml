@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  creationTimestamp: null
+  name: devspaces-build
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: devspaces-dotnet-python
+  namespace: openshift
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: system:image-pusher
+  namespace: openshift
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:image-pusher
+subjects:
+- kind: ServiceAccount
+  name: builder
+  namespace: devspaces-build
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  namespace: devspaces-build
+  name: devspaces-dotnet-python-build
+spec:
+  source:
+    type: Git
+    git:
+      uri: 'https://github.com/kevchu3/devspaces-dotnet-python.git'
+    contextDir: /
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      namespace: openshift
+      name: devspaces-dotnet-python:latest
+  triggers:
+    - type: ConfigChange
