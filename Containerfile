@@ -1,10 +1,11 @@
 FROM registry.access.redhat.com/ubi9/ubi:9.5-1742918310
 
-ENV HOME /home/user
+ENV HOME /home/tooling
 
 USER 0
 
-RUN dnf install -y diffutils git iproute jq less lsof man nano procps \
+RUN mkdir $HOME -p && \
+    dnf install -y diffutils git iproute jq less lsof man nano procps \
     perl-Digest-SHA net-tools openssh-clients rsync socat sudo time vim wget zip && \
     dnf update -y && \
     dnf clean all
@@ -18,7 +19,7 @@ ENV VSCODE_NODEJS_RUNTIME_DIR="$HOME/.nvm/versions/node/v18.18.0/bin/"
 
 RUN \
     # add user and configure it
-    useradd -u 10001 -G wheel,root -d /home/user --shell /bin/bash -m user && \
+    useradd -u 1001 -G wheel,root -d /home/user --shell /bin/bash -m user && \
     # Setup $PS1 for a consistent and reasonable prompt
     echo "export PS1='\W \`git branch --show-current 2>/dev/null | sed -r -e \"s@^(.+)@\(\1\) @\"\`$ '" >> /home/user/.bashrc && \
     # Set permissions on /etc/passwd and /home to allow arbitrary users to write
@@ -61,9 +62,22 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
     echo -n "/usr/local/bin/pytest: "; /usr/local/bin/pytest --version && \
     echo -n "/usr/local/bin/yq:     "; /usr/local/bin/yq --version && \
     # set up ~/.venv
-    cd /home/tooling; /usr/bin/python${PYTHON_VERSION} -m venv .venv && \
-    echo "<== Create python symlinks (or display existing ones)"
+    cd $HOME; /usr/bin/python${PYTHON_VERSION} -m venv .venv && \
+    echo "python basic install:"; python -V; \
+    echo -n "pip:    "; pip -V; \
+    echo -n "flake8: "; flake8 --version | tr "\n" "," | sed -r -e "s@,\$@\n@"; \
+    echo -n "pytest: "; pytest --version; \
+    echo -n "jq:     "; jq --version; \
+    echo -n "yq:     "; yq --version; \
+    echo "========" && \
+    echo "python venv install:"; source $HOME/.venv/bin/activate && python -V; \
+    echo -n "pip:    "; pip -V; \
+    echo -n "flake8: "; flake8 --version | tr "\n" "," | sed -r -e "s@,\$@\n@"; \
+    echo -n "pytest: "; pytest --version; \
+    echo -n "jq:     "; jq --version; \
+    echo -n "yq:     "; yq --version; \
+    echo "========"
 
 USER 1001
 
-WORKDIR /projects
+WORKDIR $HOME
