@@ -1,40 +1,48 @@
-FROM registry.access.redhat.com/ubi9/ubi:9.5-1742918310
+# FROM registry.access.redhat.com/ubi9-minimal
+FROM quay.io/fedora/fedora:41
 
-ENV HOME /home/tooling
+ARG USER_HOME_DIR="/home/user"
+ARG WORK_DIR="/projects"
+ARG INSTALL_PACKAGES="procps-ng openssl git tar gzip zip xz unzip which shadow-utils bash zsh vi wget jq podman buildah skopeo podman-docker glibc-devel zlib-devel gcc libffi-devel libstdc++-devel gcc-c++ glibc-langpack-en ca-certificates python3-pip python3-devel fuse-overlayfs util-linux vim-minimal vim-enhanced"
 
-USER 0
+ENV HOME=${USER_HOME_DIR}
+ENV BUILDAH_ISOLATION=chroot
 
-RUN mkdir $HOME -p && \
-    dnf install -y diffutils git iproute jq less lsof man nano procps \
-    perl-Digest-SHA net-tools openssh-clients rsync socat sudo time vim wget zip && \
-    dnf update -y && \
-    dnf clean all
+COPY --chown=0:0 entrypoint.sh /
 
-RUN \
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && \
-export NVM_DIR="$HOME/.nvm" && \
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
-nvm install 18.18.0
-ENV VSCODE_NODEJS_RUNTIME_DIR="$HOME/.nvm/versions/node/v18.18.0/bin/"
-
-RUN \
-    # add user and configure it
-    useradd -u 1001 -G wheel,root -d /home/user --shell /bin/bash -m user && \
-    # Setup $PS1 for a consistent and reasonable prompt
-    echo "export PS1='\W \`git branch --show-current 2>/dev/null | sed -r -e \"s@^(.+)@\(\1\) @\"\`$ '" >> /home/user/.bashrc && \
-    # Set permissions on /etc/passwd and /home to allow arbitrary users to write
-    chgrp -R 0 /home && \
-    chmod -R g=u /etc/passwd /etc/group /home
+RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}; \
+  microdnf update -y ; \
+  microdnf clean all ; \
+  mkdir -p /usr/local/bin ; \
+  mkdir -p ${WORK_DIR} ; \
+  pip3 install -U podman-compose ; \
+  pip3 install -U cekit ; \
+  chgrp -R 0 /home ; \
+  chmod -R g=u /home ${WORK_DIR} ; \
+  chmod +x /entrypoint.sh ; \
+  chown 0:0 /etc/passwd ; \
+  chown 0:0 /etc/group ; \
+  chmod g=u /etc/passwd /etc/group ; \
+  # Setup for rootless podman
+  setcap cap_setuid+ep /usr/bin/newuidmap ; \
+  setcap cap_setgid+ep /usr/bin/newgidmap ; \
+  touch /etc/subgid /etc/subuid ; \
+  chown 0:0 /etc/subgid ; \
+  chown 0:0 /etc/subuid ; \
+  chmod -R g=u /etc/subuid /etc/subgid ; \
+  # Create Sym Links for OpenShift CLI (Assumed to be retrieved by an init-container)
+  ln -s /projects/bin/oc /usr/local/bin/oc ; \
+  ln -s /projects/bin/kubectl /usr/local/bin/kubectl
 
 # Install .NET
-ENV DOTNET_RPM_VERSION=7.0
+ENV DOTNET_RPM_VERSION=9.0
 RUN dnf install -y dotnet-hostfxr-${DOTNET_RPM_VERSION} dotnet-runtime-${DOTNET_RPM_VERSION} dotnet-sdk-${DOTNET_RPM_VERSION}
 
 # Install Python
 # https://catalog.redhat.com/software/containers/devspaces/udi-rhel9/673f8460bbf0c33aca0fe316?container-tabs=dockerfile
-ENV PYTHON_VERSION="3.11"
+ENV PYTHON_VERSION="3.13"
 RUN dnf -y -q install --setopt=tsflags=nodocs \
-    python3.11 python3.11-devel python3.11-setuptools python3.11-pip python3.11-wheel && \
+    python${PYTHON_VERSION} python${PYTHON_VERSION}-devel python${PYTHON_VERSION}-setuptools python${PYTHON_VERSION}-pip python${PYTHON_VERSION}-wheel && \
 
     ########################################################################
     # Python
@@ -80,4 +88,6 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
 
 USER 1001
 
-WORKDIR $HOME
+WORKDIR ${WORK_DIR}
+ENTRYPOINT ["/usr/libexec/podman/catatonit","--","/entrypoint.sh"]
+CMD [ "tail", "-f", "/dev/null" ]
