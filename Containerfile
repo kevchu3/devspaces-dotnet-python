@@ -9,6 +9,7 @@ ENV HOME=${USER_HOME_DIR}
 ENV BUILDAH_ISOLATION=chroot
 
 COPY --chown=0:0 entrypoint.sh /
+COPY --chown=0:0 podman-wrapper.sh /usr/bin/
 
 RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}; \
   microdnf update -y ; \
@@ -17,6 +18,7 @@ RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}
   mkdir -p ${WORK_DIR} ; \
   pip3 install -U podman-compose ; \
   pip3 install -U cekit ; \
+  mkdir -p /home/user/.local/share ; \
   chgrp -R 0 /home ; \
   chmod -R g=u /home ${WORK_DIR} ; \
   chmod +x /entrypoint.sh ; \
