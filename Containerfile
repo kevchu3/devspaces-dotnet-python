@@ -5,13 +5,15 @@ ARG USER_HOME_DIR="/home/user"
 ARG WORK_DIR="/projects"
 ARG INSTALL_PACKAGES="procps-ng openssl git tar gzip zip xz unzip which shadow-utils bash zsh vi wget jq podman buildah skopeo podman-docker glibc-devel zlib-devel gcc libffi-devel libstdc++-devel gcc-c++ glibc-langpack-en ca-certificates python3-pip python3-devel fuse-overlayfs util-linux vim-minimal vim-enhanced"
 
-ENV HOME=${USER_HOME_DIR}
-ENV BUILDAH_ISOLATION=chroot
+ENV HOME=${USER_HOME_DIR} \
+    KUBECONFIG=/home/user/.kube/config \
+    BUILDAH_ISOLATION=chroot
 
-COPY --chown=0:0 entrypoint.sh /
-COPY --chown=0:0 podman-wrapper.sh /usr/bin/
+COPY --chown=0:0 tools/entrypoint.sh /
+COPY --chown=0:0 tools/podman-wrapper.sh /usr/bin/
+COPY --chown=0:0 tools/kubedock /usr/bin
 
-RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}; \
+RUN microdnf install -y ${INSTALL_PACKAGES}; \
   microdnf update -y ; \
   microdnf clean all ; \
   mkdir -p /usr/local/bin ; \
@@ -19,6 +21,7 @@ RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}
   pip3 install -U podman-compose ; \
   pip3 install -U cekit ; \
   mkdir -p /home/user/.local/share ; \
+  mkdir -p /home/user/.local/bin ; \
   chgrp -R 0 /home ; \
   chmod -R g=u /home ${WORK_DIR} ; \
   chmod +x /entrypoint.sh ; \
@@ -39,6 +42,13 @@ RUN microdnf --disableplugin=subscription-manager install -y ${INSTALL_PACKAGES}
 # Install .NET
 ENV DOTNET_RPM_VERSION=9.0
 RUN dnf install -y dotnet-hostfxr-${DOTNET_RPM_VERSION} dotnet-runtime-${DOTNET_RPM_VERSION} dotnet-sdk-${DOTNET_RPM_VERSION}
+
+# Install oc cli
+ENV OC_VERSION=openshift-client-linux-4.17.22
+
+RUN wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.17/${OC_VERSION}.tar.gz && \
+    gzip -dvf ${OC_VERSION}.tar.gz && tar -xvf ${OC_VERSION}.tar && \
+    chmod 755 oc && mv oc /usr/bin/ && /bin/rm -rf ${OC_VERSION}.tar kubectl README.md
 
 # Install Python
 # https://catalog.redhat.com/software/containers/devspaces/udi-rhel9/673f8460bbf0c33aca0fe316?container-tabs=dockerfile
@@ -91,5 +101,5 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
 USER 1001
 
 WORKDIR ${WORK_DIR}
-ENTRYPOINT ["/usr/libexec/podman/catatonit","--","/entrypoint.sh"]
+ENTRYPOINT [ "/entrypoint.sh" ]
 CMD [ "tail", "-f", "/dev/null" ]
