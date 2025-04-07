@@ -3,7 +3,7 @@ FROM quay.io/fedora/fedora:41
 
 ARG USER_HOME_DIR="/home/user"
 ARG WORK_DIR="/projects"
-ARG INSTALL_PACKAGES="procps-ng openssl git tar gzip zip xz unzip which shadow-utils bash zsh vi wget jq podman buildah skopeo podman-docker glibc-devel zlib-devel gcc libffi-devel libstdc++-devel gcc-c++ glibc-langpack-en ca-certificates python3-pip python3-devel fuse-overlayfs util-linux vim-minimal vim-enhanced"
+ARG INSTALL_PACKAGES="procps-ng openssl git tar gzip zip xz unzip which shadow-utils bash zsh vi wget jq gh podman buildah skopeo podman-docker glibc-devel zlib-devel gcc libffi-devel libstdc++-devel gcc-c++ glibc-langpack-en ca-certificates python3-pip python3-devel fuse-overlayfs util-linux vim-minimal vim-enhanced"
 
 ENV HOME=${USER_HOME_DIR} \
     KUBECONFIG=/home/user/.kube/config \
@@ -98,7 +98,11 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
     echo -n "yq:     "; yq --version; \
     echo "========"
 
-USER 1001
+# USER 1001
+USER root
+
+# A last pass to make sure that an arbitrary user can write in $HOME
+RUN chgrp -R 0 /home && chmod -R g=u /home
 
 WORKDIR ${WORK_DIR}
 ENTRYPOINT [ "/entrypoint.sh" ]
