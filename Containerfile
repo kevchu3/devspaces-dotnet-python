@@ -7,7 +7,8 @@ ARG INSTALL_PACKAGES="procps-ng openssl git tar gzip zip xz unzip which shadow-u
 
 ENV HOME=${USER_HOME_DIR} \
     KUBECONFIG=/home/user/.kube/config \
-    BUILDAH_ISOLATION=chroot
+    BUILDAH_ISOLATION=chroot \
+    PATH="/home/user/.local/bin:${PATH:-/bin:/usr/bin}"
 
 COPY --chown=0:0 tools/entrypoint.sh /
 COPY --chown=0:0 tools/podman-wrapper.sh /usr/bin/
@@ -98,11 +99,10 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
     echo -n "yq:     "; yq --version; \
     echo "========"
 
-# USER 1001
-USER root
-
 # A last pass to make sure that an arbitrary user can write in $HOME
 RUN chgrp -R 0 /home && chmod -R g=u /home
+
+USER 1001
 
 WORKDIR ${WORK_DIR}
 ENTRYPOINT [ "/entrypoint.sh" ]
