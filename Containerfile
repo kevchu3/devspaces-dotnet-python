@@ -98,6 +98,7 @@ RUN dnf -y -q install --setopt=tsflags=nodocs \
 RUN oc completion bash > oc_bash_completion && \
     mv oc_bash_completion /etc/bash_completion.d/ && \
     cp /etc/skel/.bashrc $USER_HOME_DIR/.bashrc
+COPY tools/.zshrc $USER_HOME_DIR/.zshrc
 
 # A last pass to make sure that an arbitrary user can write in $HOME
 RUN chgrp -R 0 /home && chmod -R g=u /home
