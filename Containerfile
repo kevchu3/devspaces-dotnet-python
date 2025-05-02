@@ -47,7 +47,11 @@ ENV OC_BINARY=openshift-client-linux
 
 RUN wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-4.17/${OC_BINARY}.tar.gz && \
     gzip -dvf ${OC_BINARY}.tar.gz && tar -xvf ${OC_BINARY}.tar && \
-    chmod 755 oc && mv oc /usr/bin/ && /bin/rm -rf ${OC_BINARY}.tar kubectl README.md
+    chmod 755 oc && mv oc /usr/bin/ && /bin/rm -rf ${OC_BINARY}.tar kubectl README.md && oc version
+
+# Install kn cli
+RUN wget https://github.com/knative/client/releases/download/knative-v1.18.0/kn-linux-amd64 && \
+    chmod 755 kn-linux-amd64 && mv kn-linux-amd64 /usr/bin/kn && kn version
 
 # Install Python
 # https://catalog.redhat.com/software/containers/devspaces/udi-rhel9/673f8460bbf0c33aca0fe316?container-tabs=dockerfile
